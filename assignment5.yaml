@@ -1,0 +1,75 @@
+---
+- hosts: all
+  become: true
+  tasks:
+  - name: Install jdk and update cache
+    apt:
+      pkg: default-jdk
+      state: present
+      update_cache: yes
+    apt:
+      pkg: curl
+      state: present
+  - name: Ensure group tomcat exists
+    ansible.builtin.group:
+      name: tomcat 
+      state: present
+      gid: 2001
+  - name: Add the user tomcat with a  uid 2001 and a primary group of 'admin'
+    ansible.builtin.user:
+      name: tomcat 
+      comment: Tomcat User
+      uid: 2001
+      group: tomcat 
+      create_home: yes
+      home: /opt/tomcat 
+      shell: /bin/false 
+  - name: Safely use templated variable to run command. Always use the quote filter to avoid injection issues
+    ansible.builtin.get_url:  
+      url: https://archive.apache.org/dist/tomcat/tomcat-8/v8.5.31/bin/apache-tomcat-8.5.31.tar.gz 
+      dest: /home/u/apache-tomcat-8.5.31.tar.gz
+      mode: '0640'
+#  - name: Extract foo.tgz into /var/lib/foo
+#    ansible.builtin.unarchive:
+#      src: /home/u/apache-tomcat-8.5.31.tar.gz 
+#      remote_src: yes
+#      strip_components: 1 
+#      owner: tomcat
+#      group: tomcat
+#      mode: '0755'
+#      dest: /opt/tomcat 
+  - name: Execute the command in remote shell; stdout goes to the specified file on the remote
+    ansible.builtin.shell: sudo tar xzvf apache-tomcat-8*tar.gz -C /opt/tomcat --strip-components=1 
+  - name: Recursively change ownership of a directory /opt/tomcat
+    ansible.builtin.file:
+      path: /opt/tomcat
+      state: directory
+      recurse: yes
+      group: tomcat
+  - name: Recursively change ownership of a directory /opt/tomcat/apache-tomcat-8.5.31/conf
+    ansible.builtin.file:
+      path: /opt/tomcat/apache-tomcat-8.5.31/conf
+      state: directory
+      recurse: yes
+      mode: g+r
+  - name: Recursively change ownership of a directory /opt/tomcat
+    ansible.builtin.file:
+      path: "/opt/tomcat/apache-tomcat-8.5.31/{{ item }}"
+      state: directory
+      recurse: yes
+      owner: tomcat
+    loop:
+      - webapps
+      - work
+      - temp
+      - logs
+  - name: Copy file tomcat.service to /etc/systemd/system/tomcat.service 
+    ansible.builtin.copy:
+      src: /etc/ansible/roles/tomcat/files/tomcat.service
+      dest: /etc/systemd/system/tomcat.service
+  - name: Restart service tomcat.service on server, in all cases, also issue daemon-reload to pick up config changes
+    ansible.builtin.systemd_service:
+      state: started
+      daemon_reload: true
+      name: tomcat.service
+
