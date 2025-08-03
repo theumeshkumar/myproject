@@ -1,0 +1,25 @@
+---
+- hosts: all
+  become: true
+  tasks:
+  - name: Add webupd8team java stable repository from PPA and install its signing key on Ubuntu target
+    ansible.builtin.apt_repository:
+      repo: ppa:webupd8team/java 
+  - name: Update all packages to their latest version
+    ansible.builtin.apt:
+      name: "*"
+      state: latest                            
+  - name: Install python-software-properties and default-jdk to their latest version
+    ansible.builtin.apt:
+      name: "{{ item }}"
+      state: present
+    loop:
+    - python-software-properties
+    - default-jdk
+  - name: getmaven offline installer for maven
+    ansible.builtin.get_url:  
+      url: http://apache.mirror.digitalpacific.com.au/maven/maven-3/3.3.9/binaries/apache-maven-3.3.9-bin.tar.gz  
+      dest: /home/u/apache-maven-3.3.9-bin.tar.gz 
+      mode: '0640'
+  - name: Execute the command in remote shell; stdout goes to the specified file on the remote
+    ansible.builtin.shell: sudo tar xzvf /home/u/apache-maven-3.3.9-bin.tar.gz -C /opt/  
